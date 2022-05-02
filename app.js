@@ -94,26 +94,46 @@ app.get('/participants', async (req, res) => {
 
 app.post('/messages', async (req, res) => {
 
+	const { to, text, type }= req.body;
+	const { user } = req.headers;
 	const lastStatus = Date.now();
 	const time = dayjs(lastStatus).format('HH:mm:ss');
+
+	const messageSchema = joi.object({
+		to: joi.string().min(1).required(),
+		text: joi.string().min(1).required(),
+		type: joi.string().valid("message", "private_message").required()
+	});
+	
+	const validacao = messageSchema.validate(req.body);
+	if(validacao.error) {
+		res.status(422).send(validacao.error.details);
+		return;
+	}
+
+	const participants = await dataBase.collection("participants").find().toArray();
+    const isParticipant = participants.filter(element => {
+		if(element.name === req.body.name) return element
+	})
+
+	if(isParticipant.length < 0) {
+		res.status(422);
+		return;
+	};
 	
 	try {
-		const { to, text, type }= req.body;
-		const { user } = req.headers
-    
-		if (to && text && type) {
+		
+		await dataBase.collection("messages").insertOne({
 
-			dataBase.collection("messages").insertOne({
+			from: user, 
+			to: to, 
+			text: text, 
+			type: type, 
+			time
 
-				from: user, 
-				to: to, 
-				text: text, 
-				type: type, 
-				time
-
-			});
-			res.sendStatus(201);
-		}
+		});
+		res.sendStatus(201);
+	
 				
 	 } catch (error) {
 	  console.log(error);
