@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { MongoClient } from 'mongodb';
 import dotenv from "dotenv";
 import dayjs from 'dayjs';
+import joi from 'joi'
 
 dotenv.config();
 
@@ -22,36 +23,53 @@ await mongoClient.connect()
 	.catch(() => {console.log(chalk.bold.red("connect failed"))})
 
 app.post('/participants', async (req, res) => {
-
+	
+	const name = req.body.name;
 	const lastStatus = Date.now();
 	const time = dayjs(lastStatus).format('HH:mm:ss');
 
+	const userSchema = joi.object({
+		name: joi.string().required()
+	});
+	
+	const validacao = userSchema.validate(req.body);
+	if(validacao.error) {
+		res.status(422).send(validacao.error.details);
+		return;
+	}
+
+	const participants = await dataBase.collection("participants").find().toArray();
+    const isParticipant = participants.filter(element => {
+		if(element.name === req.body.name) return element
+	})
+
+	if(isParticipant.length > 0) {
+		res.status(409).send('usuario não disponivel: ' + req.body.name);
+		return;
+	};
+
     try {
-		const {name} = req.body;
-        console.log(name)
-		if (name) {
 
-			await dataBase.collection("participants").insertOne({
-				name, 
-				lastStatus
-			});
+		console.log("dados recebidos", name)
+		await dataBase.collection("participants").insertOne({
+			name, 
+			lastStatus
+		});
 
-			await dataBase.collection("messages").insertOne({
-	
-				from: name, 
-				to: 'Todos', 
-				text:'entra na sala...', 
-				type: 'status', 
-				time
-	
-			});
-			
-		}
+		await dataBase.collection("messages").insertOne({
+
+			from: name, 
+			to: 'Todos', 
+			text:'entra na sala...', 
+			type: 'status', 
+			time
+
+		});
+		
 		
 		console.log('user: ' + name);
 		res.sendStatus(201);
 
-		
 				
 	} catch (error) {
         console.log(error)
