@@ -143,14 +143,23 @@ app.post('/messages', async (req, res) => {
 })
 
 app.get('/messages', async (req, res) => {
-
+   
+	const limit = parseInt(req.query.limit);
+	const user = req.headers.user;
+	let messagesFiltradas = []; 
     try {
-        
-        const participants = await dataBase.collection("messages").find().toArray()
-				
-		res.send(participants);
+
+        const messages = await dataBase.collection("messages").find().toArray()
+	    messages.reverse()
+		messagesFiltradas = messages.filter(element => {
+			if(element.to === "Todos" || element.to === user || element.from === user) return element
+		});
+		
+		isNaN(limit) ? res.send(messagesFiltradas) :  res.send(messagesFiltradas.slice(0, limit)) ;
+		
 	 } catch (error) {
-	  res.status(500).send('A culpa foi do estagiário').send(error)
+	  console.log(error);
+	  res.status(500).send('A culpa foi do estagiário')
 	 }
 
 })
