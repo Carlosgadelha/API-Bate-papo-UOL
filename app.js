@@ -213,7 +213,6 @@ app.put("/messages/:id", async (req, res) => {
 
 	const { user } = req.headers;
 	const id = req.params.id;
-	const { to, from, type } = req.body;
 
 	const messageSchema = joi.object({
 		to: joi.string().min(1).required(),
