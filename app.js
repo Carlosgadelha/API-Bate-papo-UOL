@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import chalk from 'chalk';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from "dotenv";
 import dayjs from 'dayjs';
 import joi from 'joi'
@@ -167,24 +167,53 @@ app.get('/messages', async (req, res) => {
 app.post('/status', async (req, res) => {
 	const { user } = req.headers;
 	const lastStatus = Date.now();
-	console.log(user);
+
     try{
 		const participant = await dataBase.collection("participants").findOne({name: user})
-		
-		await dataBase.collection("participants").updateOne({ 
-			_id: participant._id 
-		}, { $set:{lastStatus}} )
+
+		await dataBase.collection("participants").updateOne( {name: user} , { $set:{lastStatus}} )
 
 		if (!participant) {
 			res.sendStatus(404)
 			return;
 		}
+		console.log('lastStatus: ', lastStatus);
 		res.sendStatus(200);
 	}catch(error){
 		console.log(error)
 	}
 
 })
+
+
+setInterval(async () => {
+
+	const horaAtual = Date.now();
+    try {
+		const participants = await dataBase.collection("participants").find().toArray();
+		const isRemoved = participants.filter(element => {
+			if(horaAtual - element.lastStatus > 10000) return element
+		})
+
+		isRemoved.forEach( async participant => { 
+			await dataBase.collection("participants").deleteOne({ _id: new ObjectId(participant._id) });
+			await dataBase.collection("messages").insertOne({
+
+				from: participant.name, 
+				to: 'Todos', 
+				text:'sai da sala...', 
+				type: 'status', 
+				time: dayjs(horaAtual).format('HH:mm:ss')
+
+			});
+		});
+	} catch (error) {
+		console.log(error)
+	}
+	
+
+
+} , 15000);
 
 app.listen(5000, () => {
     console.log(chalk.bold.green("Server is running on port 5000"));
