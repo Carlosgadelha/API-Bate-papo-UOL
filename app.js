@@ -164,6 +164,27 @@ app.get('/messages', async (req, res) => {
 
 })
 
+app.post('/status', async (req, res) => {
+	const { user } = req.headers;
+	const lastStatus = Date.now();
+	console.log(user);
+    try{
+		const participant = await dataBase.collection("participants").findOne({name: user})
+		
+		await dataBase.collection("participants").updateOne({ 
+			_id: participant._id 
+		}, { $set:{lastStatus}} )
+
+		if (!participant) {
+			res.sendStatus(404)
+			return;
+		}
+		res.sendStatus(200);
+	}catch(error){
+		console.log(error)
+	}
+
+})
 
 app.listen(5000, () => {
     console.log(chalk.bold.green("Server is running on port 5000"));
