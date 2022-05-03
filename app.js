@@ -150,7 +150,8 @@ app.get('/messages', async (req, res) => {
     try {
 
         const messages = await dataBase.collection("messages").find().toArray()
-	    messages.reverse()
+		messages.sort(() => {time: 1})
+
 		messagesFiltradas = messages.filter(element => {
 			if(element.to === "Todos" || element.to === user || element.from === user) return element
 		});
@@ -182,6 +183,66 @@ app.post('/status', async (req, res) => {
 	}catch(error){
 		console.log(error)
 	}
+
+})
+
+app.delete('/messages/:id', async (req, res) => {
+	const { user } = req.headers;
+	const id = req.params.id;
+	console.log(req.params.id)
+
+	try{
+		const message = await dataBase.collection("messages").findOne({_id: new ObjectId(id)})
+		await dataBase.collection("messages").deleteOne({ _id: new ObjectId(id) } )
+        console.log(message)
+        if (message.from !== user) {
+			res.sendStatus(401)
+			return;
+		}
+		if (!message) {
+			res.sendStatus(404)
+			return;
+		}
+	}catch(error){
+		console.log(error)
+	};
+	
+})
+
+app.put("/messages/:id", async (req, res) => {
+
+	const { user } = req.headers;
+	const id = req.params.id;
+	const { to, from, type } = req.body;
+
+	const messageSchema = joi.object({
+		to: joi.string().min(1).required(),
+		text: joi.string().min(1).required(),
+		type: joi.string().valid("message", "private_message").required()
+	});
+	
+	const validacao = messageSchema.validate(req.body);
+	if(validacao.error) {
+		res.status(422).send(validacao.error.details);
+		return;
+	}
+
+	try{
+		const message = await dataBase.collection("messages").findOne({_id: new ObjectId(id)})
+		await dataBase.collection("messages").updateOne( { _id: new ObjectId(id) }  , 
+		{ $set: req.body} )
+	
+        if (message.from !== user) {
+			res.sendStatus(401)
+			return;
+		}
+		if (!message) {
+			res.sendStatus(404)
+			return;
+		}
+	}catch(error){
+		console.log(error)
+	};
 
 })
 
